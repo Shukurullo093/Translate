@@ -1,0 +1,19 @@
+*{
+    font-family: 'Times New Roman', Times, serif;
+    letter-spacing: 1px;    
+}
+body{
+    background-color: white;
+}
+textarea{
+    height: 200px;
+    resize: none;
+    border-radius: 15px;
+}
+button{
+    border: 0;
+    padding: 5px 10px;
+    font-size: 22px;
+    border-radius: 35px;
+    word-wrap: break-word;
+}
