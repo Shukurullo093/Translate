@@ -1,0 +1,20 @@
+[
+  {
+    "id": "e677a1f3-6307-44a3-a600-36178a923a8e",
+    "firstName": "John",
+    "lastName": "Doe",
+    "userRank": "Java programmer",
+    "photo": "1746609479518.jpg",
+    "created_at": "2025-05-07T09:17:59.874Z",
+    "faceDescriptor": "/home/cyber/Downloads/face-1/data/faces/e677a1f3-6307-44a3-a600-36178a923a8e.json"
+  },
+  {
+    "id": "35c595b9-fd81-4a76-9ffc-07977a124653",
+    "firstName": "dddd",
+    "lastName": "llllllll",
+    "userRank": "new",
+    "photo": "1746615206337.jpeg",
+    "created_at": "2025-05-07T10:53:26.348Z",
+    "faceDescriptor": "/home/cyber/Downloads/face-1/data/faces/35c595b9-fd81-4a76-9ffc-07977a124653.json"
+  }
+]
