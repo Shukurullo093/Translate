@@ -11,9 +11,11 @@ const PORT = 3000;
 const dataDir = path.join(__dirname, 'data');
 const usersFile = path.join(dataDir, 'users.json');
 const facesDir = path.join(dataDir, 'faces');
+const historyPath = path.join(dataDir, 'history');
 
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
 if (!fs.existsSync(facesDir)) fs.mkdirSync(facesDir);
+if (!fs.existsSync(historyPath)) fs.mkdirSync(historyPath);
 if (!fs.existsSync(usersFile)) fs.writeFileSync(usersFile, '[]');
 
 // Fayl saqlash sozlamalari
@@ -127,6 +129,69 @@ app.get('/api/users/:id', (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+const filePath = path.join(historyPath, 'data.json');
+// login tarixini saqlash
+app.post('/save-json', (req, res) => {
+  const { user_id } = req.body;
+
+  if (!user_id) {
+    return res.status(400).json({ success: false, message: "user_id talab qilinadi" });
+  }
+
+  const newData = {
+    id: uuidv4(), // UUID avtomatik hosil bo‘ladi
+    user_id,
+    created_date: new Date().toISOString()
+  };
+
+  // Eski fayldan o‘qib, yangi yozuv qo‘shamiz
+  fs.readFile(filePath, 'utf8', (err, data) => {
+    let json = [];
+    if (!err && data) {
+      try {
+        json = JSON.parse(data);
+      } catch (parseErr) {
+        console.error("JSON parse xatolik:", parseErr);
+      }
+    }
+
+    json.push(newData);
+
+    fs.writeFile(filePath, JSON.stringify(json, null, 2), (writeErr) => {
+      if (writeErr) {
+        console.error("Yozishda xatolik:", writeErr);
+        return res.status(500).json({ success: false, message: "Faylga yozib bo‘lmadi" });
+      }
+
+      res.json({ success: true, message: "Ma’lumot saqlandi", data: newData });
+    });
+  });
+});
+
+// login tarixini olish
+app.get('/history', (req, res) => {
+  fs.readFile(filePath, 'utf8', (err, data) => {
+    if (err) {
+      console.error("❌ Fayl o‘qishda xatolik:", err);
+      return res.status(500).json({ success: false, message: "Fayl o‘qilmadi" });
+    }
+
+    try {
+      const jsonData = JSON.parse(data);
+
+      // DESC tartibda sort qilish (so‘nggi yozuvlar yuqorida bo‘ladi)
+      const sortedData = jsonData.sort((a, b) => {
+        return new Date(b.created_date) - new Date(a.created_date);
+      });
+
+      res.json({ success: true, data: sortedData });
+    } catch (parseErr) {
+      console.error("❌ JSON parse xatolik:", parseErr);
+      res.status(500).json({ success: false, message: "JSON noto‘g‘ri formatda" });
+    }
+  });
 });
 
 // Serverni ishga tushirish

@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const descriptorPromises = users
                     .filter(user => user.faceDescriptor)
                     .map(async (user) => {
-                        const response = await fetch('/faces/' + user.faceDescriptor.split('/').pop());
+                        const response = await fetch('/faces/' + user.faceDescriptor.split('/').pop());  // Faxriddin akada xato bor replace('/', '\\')
                         const array = await response.json();
                         const descriptor = new Float32Array(array); // Convert to Float32Array
                         return new faceapi.LabeledFaceDescriptors(
@@ -146,9 +146,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                       throw error;
                     }
                 }
-                  
-                  // Foydalanish
-                  
 
                 if (detections.length > 0) {
                     // console.log(detections[0].descriptor.length);
@@ -158,6 +155,29 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // console.log(bestMatch);
                     if (bestMatch.label !== 'unknown') {
                         // console.log(bestMatch)
+                        // const userId = "user_987"; // Bu qiymatni forma orqali olish mumkin
+
+                        fetch("/save-json", {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json"
+                                },
+                                body: JSON.stringify({
+                                    user_id: bestMatch.label
+                                })
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                            if (data.success) {
+                                console.log("✅ Ma’lumot saqlandi:", data.data);
+                            } else {
+                                console.warn("⚠️ Server xabari:", data.message);
+                            }
+                            })
+                            .catch(error => {
+                            console.error("❌ Xatolik yuz berdi:", error);
+                        });
+
                         getUserById(bestMatch.label)
                             .then(user => {
                                 // console.log("Foydalanuvchi ID:", user.id);

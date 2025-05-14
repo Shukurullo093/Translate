@@ -11,7 +11,7 @@ function generateUserTable(users) {
   
     const thead = table.createTHead();
     const headerRow = thead.insertRow();
-    ['ID', 'Ism', 'Familiya', 'Lavozim', 'Rasm', 'Vaqt'].forEach(text => {
+    ['ID', 'Ism', 'Familiya', 'Lavozim', 'Rasm', 'Vaqt', ''].forEach(text => {
       const th = document.createElement('th');
       th.textContent = text;
       headerRow.appendChild(th);
@@ -35,7 +35,7 @@ function generateUserTable(users) {
       row.insertCell().textContent = user.lastName;
 
       // Rank
-      row.insertCell().textContent = user.userRank;
+      row.insertCell().innerHTML = `<span class='bg-success text-light py-1 px-2 rounded'>${user.userRank}</span>`;
   
       // Photo (as an image element)
     //   const photoPath = user.faceDescriptor.split('data')[0]
@@ -44,6 +44,7 @@ function generateUserTable(users) {
       img.src = `/uploads/${user.photo}`; 
       img.alt = 'User Photo';
       img.width = 80;
+      img.style.borderRadius = '10px';
       photoCell.appendChild(img);
   
       // user created at
@@ -57,6 +58,9 @@ function generateUserTable(users) {
             hour12: false,
         });
       row.insertCell().textContent = formatted;
+      const action = row.insertCell();
+      action.innerHTML = `<button type="button" class="btn btn-primary"><i class="bi bi-pencil-square"></i></button>
+        <button type="button" class="btn btn-danger"><i class="bi bi-trash"></i></button>`;
     });
 }
 
@@ -196,6 +200,8 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
                 hour12: false,
             });
             cell6.textContent = formatted;
+            row.insertCell(6).innerHTML = `<button type="button" class="btn btn-primary"><i class="bi bi-pencil-square"></i></button>
+                <button type="button" class="btn btn-danger"><i class="bi bi-trash"></i></button>`
             
         }
     } catch (error) {
@@ -233,4 +239,131 @@ function showMessage(message, type) {
         case 'error':
             
     }
+}
+
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const startCamera = document.getElementById("startCamera");
+const takePhoto = document.getElementById("takePhoto");
+const countdownEl = document.getElementById("countdown");
+
+let stream;
+
+startCamera.addEventListener("click", async () => {
+    try {
+        startCamera.attributes.disabled = true;
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+    } catch (err) {
+        alert("Kamera ishlamadi: " + err.message);
+    }
+});
+
+takePhoto.addEventListener("click", () => {
+    let countdown = 5;
+    countdownEl.style.display = 'block';
+    countdownEl.textContent = countdown;
+
+    const interval = setInterval(() => {
+        countdown--;
+        countdownEl.textContent = countdown;
+
+        if (countdown === 0) {
+            clearInterval(interval);
+            countdownEl.textContent = "";
+
+            // Rasmni olish
+            const context = canvas.getContext("2d");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Kamerani o‘chirish
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+
+            // Video o‘rniga canvas ko‘rsatish
+            countdownEl.style.display = 'none'
+            video.style.display = "none";
+            canvas.style.display = "block";
+        }
+    }, 1000);
+});
+
+document.getElementById('cameraModalBtn').addEventListener('click', async () => {
+    // e.preventDefault();
+    const firstName = document.getElementById('cfirstName').value;
+    const lastName = document.getElementById('clastName').value;
+    const userRank = document.getElementById('cuserRank').value;
+    const photoFile = dataURLtoFile(canvas.toDataURL("image/png"), 'userphoto.png');
+
+    const formData = new FormData();
+    formData.append('firstName', firstName);
+    formData.append('lastName', lastName);
+    formData.append('userRank', userRank);
+    formData.append('photo', photoFile);
+
+    try {
+        const response = await fetch('/api/register', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            console.log("Ro'yxatdan muvaffaqiyatli o'tdingiz!");
+            await saveFaceDescriptor(data.userId, data.userPhoto);
+            const modal = new bootstrap.Modal(document.getElementById('cameraModal'));
+            modal.hide();
+            var table = document.getElementById("user-table");
+            var row = table.insertRow(table.rows.length);
+            var cell1 = row.insertCell(0);
+            var cell2 = row.insertCell(1);
+            var cell3 = row.insertCell(2);
+            var cell4 = row.insertCell(3);
+            var cell5 = row.insertCell(4);
+            var cell6 = row.insertCell(5);
+
+            cell1.textContent = table.rows.length - 1;
+            cell2.textContent = firstName;
+            cell3.textContent = lastName;
+            cell4.textContent = userRank;
+            const img = document.createElement('img');
+            img.src = `/uploads/${data.userPhoto}`; 
+            img.alt = 'User Photo';
+            img.width = 80;
+            cell5.appendChild(img);
+            const date = new Date();
+            const formatted = date.toLocaleString('uz-UZ', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+            });
+            cell6.textContent = formatted;
+            row.insertCell(6).innerHTML = `<button type="button" class="btn btn-primary"><i class="bi bi-pencil-square"></i></button>
+                <button type="button" class="btn btn-danger"><i class="bi bi-trash"></i></button>`
+        }
+    } catch (error) {
+        console.error('Xatolik:', error);
+    }
+});
+
+function dataURLtoFile(dataurl, filename) {
+  const arr = dataurl.split(',');
+  const mime = arr[0].match(/:(.*?);/)[1];
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+
+  return new File([u8arr], filename, { type: mime });
 }
