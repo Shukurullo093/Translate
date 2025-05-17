@@ -16,11 +16,15 @@
                 <button type="button" class="btn btn-success" onclick="tableToExcel('user-table', 'W3C Example Table')">
                     <i class="bi bi-filetype-xlsx"></i> Excelga saqlash
                 </button>
-                <a class="btn btn-primary" href="http://localhost:3000/index.html"><i class="bi bi-person-add"></i> Ro'yhatdan o'tish</a>
+                <a class="btn btn-primary" href="http://localhost:3000/dashboard.html"><i class="bi bi-person-add"></i> Ro'yhatdan o'tish</a>
                 <a class="btn btn-primary" href="http://localhost:3000/login.html"><i class="bi bi-person-bounding-box"></i> Kirish</a>
             </div>
             <div class="col-10 py-3">
                 <h2 class="text-uppercase text-light text-center">title</h2>
+                <div class="filters d-flex justify-content-between gap-1">
+                    <input type="search" id="search" class="form-control" placeholder="Qidirish...">
+                    <input type="date" id="date" class="form-control">
+                </div>
                 <table id="user-table" class="table table-hover w-100 mt-1 rounded"></table>
             </div>
         </div>
@@ -32,15 +36,21 @@
     <!-- <script src="js/script.js"></script> -->
     <script>
         window.addEventListener('load', async () => {
-            const history = await getHistory(); 
-            generateLoginHistoryTable(history);
+            loadHistory();
         });
 
+        // setInterval(loadHistory, 5000);
+
+        async function loadHistory(){
+            const history = await getHistory(); 
+            generateLoginHistoryTable(history);
+        }
+
         async function getHistory() {
-            const response = await fetch('/history');
-            const users = await response.json(); 
-            // console.log(users.data)
-            return users.data;
+            const response = await fetch('/api/login/history');
+            const history = await response.json(); 
+            // console.log(users);
+            return history;
         }
 
         function generateLoginHistoryTable(users) {
@@ -62,60 +72,21 @@
             let id=1;
             users.forEach(user =>{
                 const row = tbody.insertRow();
-                    // console.log(user);
-                // ID
                 row.insertCell().textContent = id; //user.id
                 id++;
-            
-                getUserById(user.user_id)
-                    .then(user => {
-                        // console.log("Foydalanuvchi ID:", user.id);
-                        // console.log("Foydalanuvchi ismi:", user.firstName);
-                        row.insertCell().textContent = user.firstName + ' ' + user.lastName;
-                        row.insertCell().textContent = user.userRank;
-                        // console.log("Foydalanuvchi rasmi:", user.photo);
-                        // document.getElementById('user-photo').src = '/uploads/' + user.photo;
-                        // console.log("Foydalanuvchi rasmi:", user.photo);
-                        // console.log("Foydalanuvchi familiyasi:", user.lastName);
-                        // console.log("Foydalanuvchi lavozimi:", user.userRank);
-                        
-                    // Ma'lumotlar bilan ishlash
-                    // if (user.faceDescriptor) {
-                    //     const descriptor = new Float32Array(user.faceDescriptor);
-                    //     console.log("Face descriptor:", descriptor);
-                    // }
-                    }).then(()=>{
-                        const date = new Date(user.created_date);
-                        const formatted = date.toLocaleString('uz-UZ', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            hour12: false,
-                        });
-                        row.insertCell().textContent = formatted;
-                    });
-                // First Name
-                // row.insertCell().textContent = user.firstName;
-            
-                // Last Name
-                // row.insertCell().textContent = user.lastName;
 
-                // Rank
-                //row.insertCell().textContent = user.userRank;
-            
-                // Photo (as an image element)
-                //   const photoPath = user.faceDescriptor.split('data')[0]
-                // const photoCell = row.insertCell();
-                // const img = document.createElement('img');
-                // img.src = `/uploads/${user.photo}`; 
-                // img.alt = 'User Photo';
-                // img.width = 80;
-                // photoCell.appendChild(img);
-            
-                // user created at
-                
+                row.insertCell().textContent = user.firstname + ' ' + user.lastname;
+                row.insertCell().textContent = user.label;
+                const date = new Date(user.timestamp);
+                const formatted = date.toLocaleString('uz-UZ', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                });
+                row.insertCell().textContent = formatted;
             });
         }
 
@@ -147,6 +118,45 @@
                 window.location.href = uri + base64(format(template, ctx))
             }
         })()
+    
+        document.getElementById('search').addEventListener('input', function() {
+            const searchTerm = this.value.trim().toLowerCase();
+            const rows = document.querySelectorAll('#user-table tbody tr');
+            
+            if (!searchTerm) {
+                rows.forEach(row => row.style.display = '');
+                return;
+            }
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                let rowText = '';
+                
+                cells.forEach(cell => {
+                    rowText += ' ' + cell.textContent.toLowerCase();
+                });
+                
+                row.style.display = rowText.includes(searchTerm) ? '' : 'none';
+            });
+        });
+    
+        document.getElementById('date').addEventListener('input', function() {
+            const selectedDate = this.value;
+            const rows = document.querySelectorAll('#user-table tbody tr');
+            
+            if (!selectedDate) {
+                rows.forEach(row => row.style.display = '');
+                return;
+            }
+            
+            rows.forEach(row => {
+                const dateCell = row.cells[3]; // Assuming the date is in the 4th column (index 3)
+                const cellDate = new Date(dateCell.textContent);
+                const formattedCellDate = cellDate.toISOString().split('T')[0]; // Format to YYYY-MM-DD
+                
+                row.style.display = formattedCellDate === selectedDate ? '' : 'none';
+            });
+        });
     </script>
 </body>
 </html>

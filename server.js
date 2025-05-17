@@ -3,6 +3,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
+const uuid = require('uuid'); // agar hali qo‘shilmagan bo‘lsa
+const db = require('./db');
 
 const app = express();
 const PORT = 3000;
@@ -40,38 +42,115 @@ app.use('/faces', express.static(path.join(__dirname, 'data/faces')));
 
 // Foydalanuvchilarni o'qish
 function getUsers() {
+
   return JSON.parse(fs.readFileSync(usersFile));
 }
 
-// Foydalanuvchini saqlash
-function saveUser(user) {
-  const users = getUsers();
-  users.push(user);
-  fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+// // Foydalanuvchini saqlash
+// function saveUser(user) {
+//   const users = getUsers();
+//   users.push(user);
+//   fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+// }
+
+async function getFaceDescriptor(img){
+  const detection = await faceapi.detectSingleFace(img)
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+  return detection.descriptor;
 }
 
 // API endpointlari
 app.post('/api/register', upload.single('photo'), (req, res) => {
   try {
-    const { firstName, lastName, userRank } = req.body;
-    const photo = req.file.filename;
     const userId = uuidv4();
+    const { firstName, lastName, userRank, faceEncoding } = req.body;
+    const photo = req.file.filename;
+    // const faceDescriptor = getFaceDescriptor(photo);
+    const imagePath = `/uploads/${req.file.filename}`;
     
-    const newUser = {
-      id: userId,
-      firstName,
-      lastName,
-      userRank: userRank,
-      photo,
-      created_at: new Date(),
-      faceDescriptor: null // Keyinroq to'ldiriladi
-    };
+    if (!firstName || !faceEncoding || !req.file) {
+      return res.status(400).json({ message: 'Name, faceEncoding, and image are required' });
+    }
+
+    let encodingArray;
+    try {
+      encodingArray = JSON.parse(faceEncoding); // JSON string to array
+    } catch {
+      return res.status(400).json({ message: 'faceEncoding must be a valid JSON array' });
+    }
+    // console.log(encodingArray.length, 'ok');
+    // const newUser = {
+    //   id: userId,
+    //   firstName,
+    //   lastName,
+    //   userRank: userRank,
+    //   photo,
+    //   created_at: new Date(),
+    //   faceDescriptor: null // Keyinroq to'ldiriladi
+    // };
     
-    saveUser(newUser);
+    // saveUser(newUser);
+    const createdAt = new Date().toISOString();
+    // console.log(createdAt);
+    const stmt = db.prepare(
+      `INSERT INTO users (id, firstname, lastname, label, faceEncoding, imagePath, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`);
+    stmt.run(userId, firstName, lastName, userRank, JSON.stringify(encodingArray), imagePath, createdAt);
+
     res.json({ success: true, userId, userPhoto: photo });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
+});
+
+function euclideanDistance(a, b) {
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) {
+    const diff = a[i] - b[i];
+    sum += diff * diff;
+  }
+  return Math.sqrt(sum);
+}
+
+const THRESHOLD = 0.5; // max masofa
+
+app.post('/api/users/login', express.json(), (req, res) => {
+  const { faceEncoding } = req.body;
+  // console.log(faceEncoding);
+  if (!faceEncoding || !Array.isArray(faceEncoding)) {
+    return res.status(400).json({ message: 'Invalid faceEncoding' });
+  }
+
+  const users = db.prepare('SELECT id, firstname, faceEncoding FROM users').all();
+
+  for (const user of users) {
+    const dbEncoding = JSON.parse(user.faceEncoding);
+    const distance = euclideanDistance(faceEncoding, dbEncoding);
+
+    if (distance < THRESHOLD) {
+      const now = new Date();
+      const oneMinuteAgo = new Date(now.getTime() - 60 * 1000).toISOString();
+
+      // Oxirgi 1 daqiqa ichida foydalanuvchi login qilganmi?
+      const recentLogin = db.prepare(`
+        SELECT id FROM history 
+        WHERE userId = ? AND timestamp > ?
+        ORDER BY timestamp DESC LIMIT 1
+      `).get(user.id, oneMinuteAgo);
+
+      if (!recentLogin) {
+        db.prepare(`
+          INSERT INTO history (id, userId, timestamp)
+          VALUES (?, ?, ?)
+        `).run(uuid.v4(), user.id, now.toISOString());
+      }
+
+      return res.json({ message: 'Login successful', id: user.id, name: user.firstname });
+    }
+  }
+
+  res.status(401).json({ message: 'User not recognized' });
 });
 
 // Face descriptor ni saqlash
@@ -103,7 +182,17 @@ app.post('/api/save-face', express.json(), (req, res) => {
 // Barcha foydalanuvchilarni olish
 app.get('/api/users', (req, res) => {
   try {
-    const users = getUsers();
+    const users = db.prepare('SELECT id, firstname, lastname, label, imagePath, createdAt FROM users').all();
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Barcha foydalanuvchilarni olish
+app.get('/api/users/face', (req, res) => {
+  try {
+    const users = db.prepare('SELECT id, faceEncoding FROM users').all();
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -130,6 +219,26 @@ app.get('/api/users/:id', (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Id bo'yicha o'chirish
+app.delete('/api/users/:id', (req, res) => {
+  const stmt = db.prepare('DELETE FROM users WHERE id = ?');
+  const result = stmt.run(req.params.id);
+  if (result.changes === 0) return res.status(404).json({ message: 'User not found' });
+  res.json({ message: 'Hodim o\'chirildi' });
+});
+
+app.get('/api/login/history', (req, res) => {
+  const history = db.prepare(`
+    SELECT h.id, h.timestamp, u.firstname, u.lastname, u.label, u.imagePath
+    FROM history h
+    JOIN users u ON u.id = h.userId
+    ORDER BY h.timestamp DESC
+  `).all();
+
+  res.json(history);
+});
+
 
 const filePath = path.join(historyPath, 'data.json');
 // login tarixini saqlash

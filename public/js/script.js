@@ -29,26 +29,26 @@ function generateUserTable(users) {
       id++;
   
       // First Name
-      row.insertCell().textContent = user.firstName;
+      row.insertCell().textContent = user.firstname;
   
       // Last Name
-      row.insertCell().textContent = user.lastName;
+      row.insertCell().textContent = user.lastname;
 
       // Rank
-      row.insertCell().innerHTML = `<span class='bg-success text-light py-1 px-2 rounded'>${user.userRank}</span>`;
+      row.insertCell().innerHTML = `<span class='bg-success text-light py-1 px-2 rounded'>${user.label}</span>`;
   
       // Photo (as an image element)
     //   const photoPath = user.faceDescriptor.split('data')[0]
       const photoCell = row.insertCell();
       const img = document.createElement('img');
-      img.src = `/uploads/${user.photo}`; 
+      img.src = `/uploads/${user.imagePath.split('/').pop()}`; 
       img.alt = 'User Photo';
       img.width = 80;
       img.style.borderRadius = '10px';
       photoCell.appendChild(img);
   
       // user created at
-        const date = new Date(user.created_at);
+        const date = new Date(user.createdAt);
         const formatted = date.toLocaleString('uz-UZ', {
             day: '2-digit',
             month: '2-digit',
@@ -60,7 +60,7 @@ function generateUserTable(users) {
       row.insertCell().textContent = formatted;
       const action = row.insertCell();
       action.innerHTML = `<button type="button" class="btn btn-primary"><i class="bi bi-pencil-square"></i></button>
-        <button type="button" class="btn btn-danger"><i class="bi bi-trash"></i></button>`;
+        <button type="button" class="btn btn-danger" onclick='userDelete(this)' data-user-id='${user.id}'><i class="bi bi-trash"></i></button>`;
     });
 }
 
@@ -80,7 +80,6 @@ async function loadModels() {
       await faceapi.nets.ssdMobilenetv1.loadFromUri(modelPath);
       await faceapi.nets.faceLandmark68Net.loadFromUri(modelPath);
       await faceapi.nets.faceRecognitionNet.loadFromUri(modelPath);
-      console.log('localhostdan yuklanmoqda');
 
         // const modelUrl = 'https://justadudewhohacks.github.io/face-api.js/models';
         
@@ -143,19 +142,51 @@ async function saveFaceDescriptor(userId, userPhoto) {
         }
     }
 }
-  
+
+document.getElementById('userPhoto').addEventListener('change', async function() {
+  const file = this.files[0];
+  if (!file) return;
+
+  const img = document.getElementById('preview');
+  img.src = URL.createObjectURL(file);
+
+//   img.onload = async () => {
+//     const detection = await faceapi
+//       .detectSingleFace(img)
+//       .withFaceLandmarks()
+//       .withFaceDescriptor();
+
+//     if (!detection) return alert("Yuz topilmadi!");
+
+//     const faceEncoding = Array.from(detection.descriptor);
+//     // console.log(faceEncoding);
+//   };
+});
+
 // Ro'yxatdan o'tish formasi
 document.getElementById('saveBtn').addEventListener('click', async () => {
     // e.preventDefault();
-    const firstName = document.getElementById('firstName').value;
-    const lastName = document.getElementById('lastName').value;
+    let firstName = document.getElementById('firstName').value;
+    firstName = capitalize(firstName);
+    let lastName = document.getElementById('lastName').value;
+    lastName = capitalize(lastName);
     const userRank = document.getElementById('userRank').value;
     const photoFile = document.getElementById('userPhoto').files[0];
+
+    // const img = await faceapi.fetchImage(photoFile);
+    const detections = await faceapi.detectSingleFace(document.getElementById('preview'))
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+    if (!detections) return alert('Yuz topilmadi.');
+
+    const faceEncoding = Array.from(detections.descriptor);
+    // console.log(faceEncoding);
 
     const formData = new FormData();
     formData.append('firstName', firstName);
     formData.append('lastName', lastName);
     formData.append('userRank', userRank);
+    formData.append('faceEncoding', JSON.stringify(faceEncoding));
     formData.append('photo', photoFile);
 
     try {
@@ -167,9 +198,12 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
         const data = await response.json();
         
         if (data.success) {
-            console.log("Ro'yxatdan muvaffaqiyatli o'tdingiz!");
-            // console.log(data.userPhoto);
-            await saveFaceDescriptor(data.userId, data.userPhoto);
+            document.getElementById('successMsg').style.display = 'block';
+            setTimeout(()=>{ 
+                document.getElementById('successMsg').style.display = 'none'; 
+                document.getElementById('registrationForm').reset();
+            }, 5000);
+
             const modal = new bootstrap.Modal(document.getElementById('myModal'));
             modal.hide();
             var table = document.getElementById("user-table");
@@ -184,7 +218,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
             cell1.textContent = table.rows.length - 1;
             cell2.textContent = firstName;
             cell3.textContent = lastName;
-            cell4.textContent = userRank;
+            cell4.innerHTML = `<span class='bg-success text-light py-1 px-2 rounded'>${userRank}</span>`;
             const img = document.createElement('img');
             img.src = `/uploads/${data.userPhoto}`; 
             img.alt = 'User Photo';
@@ -206,8 +240,26 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
         }
     } catch (error) {
         console.error('Xatolik:', error);
+        document.getElementById('errorMsg').style.display = 'block';
+        setTimeout(()=>{ 
+            document.getElementById('errorMsg').style.display = 'none'; 
+            // document.getElementById('registrationForm').reset();
+        }, 5000);
     }
 });
+
+async function userDelete(btn) {
+    const response = await fetch(`/api/users/${btn.getAttribute('data-user-id')}`, {
+            method: 'DELETE'
+        });
+        
+    const data = await response.json(); 
+    if(response.ok){
+        alert('Hodim o\'chirildi');
+        const users = await getUsers(); 
+        generateUserTable(users);
+    }
+}
   
 // FaceMatcher ni yaratish
 async function createFaceMatcher() {
@@ -298,11 +350,21 @@ document.getElementById('cameraModalBtn').addEventListener('click', async () => 
     const lastName = document.getElementById('clastName').value;
     const userRank = document.getElementById('cuserRank').value;
     const photoFile = dataURLtoFile(canvas.toDataURL("image/png"), 'userphoto.png');
+    
+    const img = document.getElementById('preview');
+    img.src = URL.createObjectURL(photoFile);
+
+    const detections = await faceapi.detectSingleFace(document.getElementById('preview'))
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+    if (!detections) return alert('Yuz topilmadi.');
+    const faceEncoding = Array.from(detections.descriptor);
 
     const formData = new FormData();
     formData.append('firstName', firstName);
     formData.append('lastName', lastName);
     formData.append('userRank', userRank);
+    formData.append('faceEncoding', JSON.stringify(faceEncoding));
     formData.append('photo', photoFile);
 
     try {
@@ -314,8 +376,12 @@ document.getElementById('cameraModalBtn').addEventListener('click', async () => 
         const data = await response.json();
         
         if (data.success) {
-            console.log("Ro'yxatdan muvaffaqiyatli o'tdingiz!");
-            await saveFaceDescriptor(data.userId, data.userPhoto);
+            document.getElementById('successMsg1').style.display = 'block';
+            setTimeout(()=>{ 
+                document.getElementById('successMsg1').style.display = 'none'; 
+                document.getElementById('registrationForm1').reset();
+            }, 5000);
+
             const modal = new bootstrap.Modal(document.getElementById('cameraModal'));
             modal.hide();
             var table = document.getElementById("user-table");
@@ -330,7 +396,7 @@ document.getElementById('cameraModalBtn').addEventListener('click', async () => 
             cell1.textContent = table.rows.length - 1;
             cell2.textContent = firstName;
             cell3.textContent = lastName;
-            cell4.textContent = userRank;
+            cell4.innerHTML = `<span class='bg-success text-light py-1 px-2 rounded'>${userRank}</span>`;
             const img = document.createElement('img');
             img.src = `/uploads/${data.userPhoto}`; 
             img.alt = 'User Photo';
@@ -366,4 +432,11 @@ function dataURLtoFile(dataurl, filename) {
   }
 
   return new File([u8arr], filename, { type: mime });
+}
+
+function capitalize(str) {
+  if (!str) {
+    return "";
+  }
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }

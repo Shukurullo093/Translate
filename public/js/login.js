@@ -66,20 +66,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             
             // 5. Foydalanuvchilarni yuklash
-            const users = await fetch('/api/users').then(res => res.json());
+            const users = await fetch('/api/users/face').then(res => res.json());
+            // console.log(users);
+
             async function createFaceMatcher(users) {
                 // Filter users with descriptors and fetch them in parallel
                 const descriptorPromises = users
-                    .filter(user => user.faceDescriptor)
-                    .map(async (user) => {
-                        const response = await fetch('/faces/' + user.faceDescriptor.split('/').pop());  // Faxriddin akada xato bor replace('/', '\\')
-                        const array = await response.json();
-                        const descriptor = new Float32Array(array); // Convert to Float32Array
+                    // .filter(user => user.faceDescriptor)
+                    .map((user) => {
+                        // console.log(user.faceEncoding.length);
+                        // const response = await fetch('/faces/' + user.faceDescriptor.split('/').pop());  // Faxriddin akada xato bor replace('/', '\\')
+                        // const array = await response.json();
+                        // const descriptor = new Float32Array(array); // Convert to Float32Array
                         return new faceapi.LabeledFaceDescriptors(
                             user.id,
-                            [descriptor] // Wrap in array (can add multiple descriptors per user)
+                            [new Float32Array(user.faceEncoding)] // Wrap in array (can add multiple descriptors per user)
                         );
                     });
+
+                // console.log(descriptorPromises);
             
                 // Wait for all fetches to complete
                 const labeledDescriptors = await Promise.all(descriptorPromises);
@@ -222,6 +227,126 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    async function loginWithFace() {
+        const startBtn = document.getElementById('start-recognition');
+        const video = document.getElementById('video');
+        try {
+            startBtn.disabled = true;
+            startBtn.textContent = "Ishga tushirilmoqda...";
+            
+            // 1. Modellarni yuklash
+            if (!faceapi.nets.ssdMobilenetv1.params) {
+                await loadModels();
+            }
+
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { width: 400, height: 400 } 
+            });
+            video.srcObject = stream;
+            video.play();
+            
+            // 3. Video yuklanishini kutish
+            await new Promise((resolve) => {
+                video.onloadeddata = () => {
+                    // console.log("Video yuklandi");
+                    resolve();
+                };
+                // 5 soniyadan keyin timeout
+                setTimeout(() => {
+                    if (video.readyState < 2) {
+                        throw new Error("Video yuklash vaqti tugadi");
+                    }
+                }, 5000);
+            });
+
+            // start
+            const detection = await faceapi
+                .detectSingleFace(video)
+                .withFaceLandmarks()
+                .withFaceDescriptor();
+
+            if (!detection) return alert("Yuz topilmadi!");
+
+            const faceEncoding = Array.from(detection.descriptor);
+
+            const res = await fetch('/api/users/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ faceEncoding })
+            });
+
+            const result = await res.json();
+
+            if (res.ok) {
+                alert(`Xush kelibsiz, ${result.name}!`);
+            } else {
+                alert(result.message || 'Tanimadim...');
+            }
+        } catch (error) {
+            console.error("Yuzni aniqlashda xatolik:", error);
+            // showError(error.message);
+        } finally {
+            startBtn.disabled = false;
+            startBtn.textContent = "Yuzni tanishni boshlash";
+        }
+    }
+
+    const login = document.getElementById('start-recognition');
+    let processing = false;
+    const detectedUserIds = new Set();
+    let btnstatus = true;
+
+    async function startRealTimeLogin() {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        if(btnstatus){
+            login.innerText = "Kamerani yopish";
+            video.srcObject = stream;
+            video.style.display = 'block';
+
+            setInterval(async () => {
+                if (processing) return;
+                processing = true;
+
+                const detection = await faceapi
+                    .detectSingleFace(video)
+                    .withFaceLandmarks()
+                    .withFaceDescriptor();
+
+                if (detection && detection.descriptor.length === 128) {
+                    const faceEncoding = Array.from(detection.descriptor);
+
+                    try {
+                        const res = await fetch('/api/users/login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ faceEncoding })
+                        });
+
+                        const result = await res.json();
+                        if (res.ok && !detectedUserIds.has(result.id)) {
+                            detectedUserIds.add(result.id);
+                            showUser(result.name); // foydalanuvchini ko‘rsat
+                        }
+                    } catch (err) {
+                        console.error('Login error:', err);
+                    }
+                }
+
+                processing = false;
+            }, 1500); // har 1.5 sekundda tekshiradi
+        } else{
+            login.innerText = "Kamerani ishga tushurish";
+            processing = false;
+            stream.getTracks().forEach(track => track.stop());
+        }
+        btnstatus = !btnstatus;
+    }
+
+    function showUser(name) {
+        // console.log(name);
+        document.getElementById('name').innerText = name;
+    }
+
     // Login tugmasiga ulash
-    document.getElementById('start-recognition').addEventListener('click', startFaceRecognition);
+    login.addEventListener('click', startRealTimeLogin);
 });
