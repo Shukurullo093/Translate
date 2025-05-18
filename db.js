@@ -9,6 +9,7 @@ db.prepare(`
     firstname TEXT NOT NULL,
     lastname TEXT NOT NULL,
     label TEXT NOT NULL,
+    mansab TEXT NOT NULL,
     faceEncoding TEXT NOT NULL,
     imagePath TEXT NOT NULL,
     createdAt TEXT NOT NULL

@@ -12,7 +12,7 @@
     <div class="container history">
         <div class="row">
             <div class="col-2 d-flex flex-column mt-3 gap-3">
-                <img src="images/logo.png" class="rounded w-100">
+                <img src="images/logo.png" class="rounded-circle w-100">
                 <button type="button" class="btn btn-success" onclick="tableToExcel('user-table', 'W3C Example Table')">
                     <i class="bi bi-filetype-xlsx"></i> Excelga saqlash
                 </button>
@@ -60,7 +60,7 @@
         
             const thead = table.createTHead();
             const headerRow = thead.insertRow();
-            ['ID', 'FIO', 'Lavozim', 'Vaqt'].forEach(text => {
+            ['ID', 'FIO', 'Lavozim', 'Rasm', 'Vaqt'].forEach(text => {
                 const th = document.createElement('th');
                 th.textContent = text;
                 headerRow.appendChild(th);
@@ -77,6 +77,13 @@
 
                 row.insertCell().textContent = user.firstname + ' ' + user.lastname;
                 row.insertCell().textContent = user.label;
+                const photoCell = row.insertCell();
+                const img = document.createElement('img');
+                img.src = `/uploads/${user.imagePath.split('/').pop()}`; 
+                img.alt = 'User Photo';
+                img.width = 80;
+                img.style.borderRadius = '10px';
+                photoCell.appendChild(img);
                 const date = new Date(user.timestamp);
                 const formatted = date.toLocaleString('uz-UZ', {
                     day: '2-digit',
@@ -84,6 +91,7 @@
                     year: 'numeric',
                     hour: '2-digit',
                     minute: '2-digit',
+                    second: '2-digit',
                     hour12: false,
                 });
                 row.insertCell().textContent = formatted;

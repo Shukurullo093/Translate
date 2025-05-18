@@ -11,7 +11,7 @@ function generateUserTable(users) {
   
     const thead = table.createTHead();
     const headerRow = thead.insertRow();
-    ['ID', 'Ism', 'Familiya', 'Lavozim', 'Rasm', 'Vaqt', ''].forEach(text => {
+    ['ID', 'Ism', 'Familiya', 'Unvon', 'Mansab', 'Rasm', 'Vaqt', ''].forEach(text => {
       const th = document.createElement('th');
       th.textContent = text;
       headerRow.appendChild(th);
@@ -36,9 +36,10 @@ function generateUserTable(users) {
 
       // Rank
       row.insertCell().innerHTML = `<span class='bg-success text-light py-1 px-2 rounded'>${user.label}</span>`;
+      row.insertCell().textContent = user.mansab;
   
-      // Photo (as an image element)
-    //   const photoPath = user.faceDescriptor.split('data')[0]
+        // Photo (as an image element)
+        //   const photoPath = user.faceDescriptor.split('data')[0]
       const photoCell = row.insertCell();
       const img = document.createElement('img');
       img.src = `/uploads/${user.imagePath.split('/').pop()}`; 
@@ -163,7 +164,28 @@ document.getElementById('userPhoto').addEventListener('change', async function()
 //   };
 });
 
+// document.getElementById('excelInput').addEventListener('change', function(e) {
+//     const file = e.target.files[0];
+//     if (!file) return;
+
+//     const reader = new FileReader();
+//     reader.onload = function (e) {
+//         const data = new Uint8Array(e.target.result);
+//         const workbook = XLSX.read(data, { type: 'array' });
+
+//         // First sheet
+//         const sheetName = workbook.SheetNames[0];
+//         const worksheet = workbook.Sheets[sheetName];
+
+//         // Convert to HTML
+//         const html = XLSX.utils.sheet_to_html(worksheet);
+//         document.getElementById('excel-table').innerHTML = html;
+//     };
+//     reader.readAsArrayBuffer(file);
+// })
+
 // Ro'yxatdan o'tish formasi
+
 document.getElementById('saveBtn').addEventListener('click', async () => {
     // e.preventDefault();
     let firstName = document.getElementById('firstName').value;
@@ -171,6 +193,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     let lastName = document.getElementById('lastName').value;
     lastName = capitalize(lastName);
     const userRank = document.getElementById('userRank').value;
+    const mansab = document.getElementById('mansab').value;
     const photoFile = document.getElementById('userPhoto').files[0];
 
     // const img = await faceapi.fetchImage(photoFile);
@@ -186,6 +209,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     formData.append('firstName', firstName);
     formData.append('lastName', lastName);
     formData.append('userRank', userRank);
+    formData.append('mansab', mansab);
     formData.append('faceEncoding', JSON.stringify(faceEncoding));
     formData.append('photo', photoFile);
 
@@ -214,11 +238,13 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
             var cell4 = row.insertCell(3);
             var cell5 = row.insertCell(4);
             var cell6 = row.insertCell(5);
+            var cell7 = row.insertCell(6);
 
             cell1.textContent = table.rows.length - 1;
             cell2.textContent = firstName;
             cell3.textContent = lastName;
             cell4.innerHTML = `<span class='bg-success text-light py-1 px-2 rounded'>${userRank}</span>`;
+            cell5.textContent = mansab;
             const img = document.createElement('img');
             img.src = `/uploads/${data.userPhoto}`; 
             img.alt = 'User Photo';
@@ -234,7 +260,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
                 hour12: false,
             });
             cell6.textContent = formatted;
-            row.insertCell(6).innerHTML = `<button type="button" class="btn btn-primary"><i class="bi bi-pencil-square"></i></button>
+            row.insertCell(7).innerHTML = `<button type="button" class="btn btn-primary"><i class="bi bi-pencil-square"></i></button>
                 <button type="button" class="btn btn-danger"><i class="bi bi-trash"></i></button>`
             
         }
@@ -247,6 +273,128 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
         }, 5000);
     }
 });
+
+async function imgToFile(imgElement, filename = 'image.jpg') {
+  const response = await fetch(imgElement.src);
+  const blob = await response.blob();
+  return new File([blob], filename, { type: blob.type });
+}
+
+document.getElementById('loadExcelBtn').addEventListener('click', () => {
+    const table1 = document.getElementById('loadExcelTable');
+    const rows = table1.getElementsByTagName('tr');
+
+    Array.from(rows).slice(1).map(async row => {
+        const cells = Array.from(row.cells);
+        
+        let firstName = cells[3].textContent.split(' ')[1];
+        firstName = capitalize(firstName);
+        let lastName = cells[3].textContent.split(' ')[0];
+        lastName = capitalize(lastName);
+        const userRank = cells[2].textContent;
+        const mansab = cells[1].textContent;
+        // let photoFile;
+        const img = cells[4].querySelector('img');
+        if (!img) {
+            return 
+        } 
+        const photoFile = await imgToFile(img, 'downloaded-image.jpg');
+        // const photoFile = document.getElementById('userPhoto').files[0];
+
+        // const img = await faceapi.fetchImage(photoFile);
+        const detections = await faceapi.detectSingleFace(img)
+            .withFaceLandmarks()
+            .withFaceDescriptor();
+        if (!detections) return alert('Yuz topilmadi.');
+
+        const faceEncoding = Array.from(detections.descriptor);
+        // console.log(faceEncoding);
+
+        const formData = new FormData();
+        formData.append('firstName', firstName);
+        formData.append('lastName', lastName);
+        formData.append('userRank', userRank);
+        formData.append('mansab', mansab);
+        formData.append('faceEncoding', JSON.stringify(faceEncoding));
+        formData.append('photo', photoFile);
+
+        try {
+            const response = await fetch('/api/register', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // document.getElementById('successMsg').style.display = 'block';
+                // setTimeout(()=>{ 
+                //     document.getElementById('successMsg').style.display = 'none'; 
+                //     document.getElementById('registrationForm').reset();
+                // }, 5000);
+
+                // const modal = new bootstrap.Modal(document.getElementById('myModal'));
+                // modal.hide();
+                var table = document.getElementById("user-table");
+                var row = table.insertRow(table.rows.length);
+                var cell1 = row.insertCell(0);
+                var cell2 = row.insertCell(1);
+                var cell3 = row.insertCell(2);
+                var cell4 = row.insertCell(3);
+                var cell5 = row.insertCell(4);
+                var cell6 = row.insertCell(5);
+                var cell7 = row.insertCell(6);
+
+                cell1.textContent = table.rows.length - 1;
+                cell2.textContent = firstName;
+                cell3.textContent = lastName;
+                cell4.innerHTML = `<span class='bg-success text-light py-1 px-2 text-capitalize rounded'>${userRank}</span>`;
+                cell5.textContent = mansab;
+                const img = document.createElement('img');
+                img.src = `/uploads/${data.userPhoto}`; 
+                img.alt = 'User Photo';
+                img.width = 80;
+                cell6.appendChild(img);
+                const date = new Date();
+                const formatted = date.toLocaleString('uz-UZ', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                });
+                cell7.textContent = formatted;
+                row.insertCell(7).innerHTML = `<button type="button" class="btn btn-primary"><i class="bi bi-pencil-square"></i></button>
+                    <button type="button" class="btn btn-danger"><i class="bi bi-trash"></i></button>`
+                
+            }
+        } catch (error) {
+            console.error('Xatolik:', error);
+            document.getElementById('errorMsg').style.display = 'block';
+            setTimeout(()=>{ 
+                document.getElementById('errorMsg').style.display = 'none'; 
+                // document.getElementById('registrationForm').reset();
+            }, 5000);
+        }
+    });  
+});
+
+document.getElementById('excelInput').addEventListener('change', async function(e) {
+    const excel = document.getElementById('excelInput').files[0];
+    const formData = new FormData();
+    formData.append('excel', excel);
+
+    const response = await fetch('/api/excel/upload', {
+        method: 'POST',
+        body: formData
+    });
+        
+    const data = await response.text();
+    if(response.ok){
+        document.getElementById('excel-table').innerHTML = data;
+    }
+})
 
 async function userDelete(btn) {
     const response = await fetch(`/api/users/${btn.getAttribute('data-user-id')}`, {
@@ -349,6 +497,7 @@ document.getElementById('cameraModalBtn').addEventListener('click', async () => 
     const firstName = document.getElementById('cfirstName').value;
     const lastName = document.getElementById('clastName').value;
     const userRank = document.getElementById('cuserRank').value;
+    const mansab = document.getElementById('cmansab').value;
     const photoFile = dataURLtoFile(canvas.toDataURL("image/png"), 'userphoto.png');
     
     const img = document.getElementById('preview');
@@ -364,6 +513,7 @@ document.getElementById('cameraModalBtn').addEventListener('click', async () => 
     formData.append('firstName', firstName);
     formData.append('lastName', lastName);
     formData.append('userRank', userRank);
+    formData.append('mansab', mansab);
     formData.append('faceEncoding', JSON.stringify(faceEncoding));
     formData.append('photo', photoFile);
 
@@ -392,16 +542,18 @@ document.getElementById('cameraModalBtn').addEventListener('click', async () => 
             var cell4 = row.insertCell(3);
             var cell5 = row.insertCell(4);
             var cell6 = row.insertCell(5);
+            var cell7 = row.insertCell(6);
 
             cell1.textContent = table.rows.length - 1;
             cell2.textContent = firstName;
             cell3.textContent = lastName;
             cell4.innerHTML = `<span class='bg-success text-light py-1 px-2 rounded'>${userRank}</span>`;
+            cell5.textContent = mansab;
             const img = document.createElement('img');
             img.src = `/uploads/${data.userPhoto}`; 
             img.alt = 'User Photo';
             img.width = 80;
-            cell5.appendChild(img);
+            cell6.appendChild(img);
             const date = new Date();
             const formatted = date.toLocaleString('uz-UZ', {
                 day: '2-digit',
@@ -411,8 +563,8 @@ document.getElementById('cameraModalBtn').addEventListener('click', async () => 
                 minute: '2-digit',
                 hour12: false,
             });
-            cell6.textContent = formatted;
-            row.insertCell(6).innerHTML = `<button type="button" class="btn btn-primary"><i class="bi bi-pencil-square"></i></button>
+            cell7.textContent = formatted;
+            row.insertCell(7).innerHTML = `<button type="button" class="btn btn-primary"><i class="bi bi-pencil-square"></i></button>
                 <button type="button" class="btn btn-danger"><i class="bi bi-trash"></i></button>`
         }
     } catch (error) {

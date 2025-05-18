@@ -3,24 +3,24 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
-const uuid = require('uuid'); // agar hali qo‘shilmagan bo‘lsa
+const uuid = require('uuid');
 const db = require('./db');
+const ExcelJS = require('exceljs');
 
 const app = express();
 const PORT = 3000;
 
 // Data papkasini yaratish
 const dataDir = path.join(__dirname, 'data');
-const usersFile = path.join(dataDir, 'users.json');
-const facesDir = path.join(dataDir, 'faces');
-const historyPath = path.join(dataDir, 'history');
+const excelDir = path.join(dataDir, 'excel');
+const photosDir = path.join(dataDir, 'photos');
+// const historyPath = path.join(dataDir, 'history');
 
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
-if (!fs.existsSync(facesDir)) fs.mkdirSync(facesDir);
-if (!fs.existsSync(historyPath)) fs.mkdirSync(historyPath);
-if (!fs.existsSync(usersFile)) fs.writeFileSync(usersFile, '[]');
+if (!fs.existsSync(excelDir)) fs.mkdirSync(excelDir);
+if (!fs.existsSync(photosDir)) fs.mkdirSync(photosDir);
+// if (!fs.existsSync(historyPath)) fs.mkdirSync(historyPath);
 
-// Fayl saqlash sozlamalari
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = path.join(__dirname, 'public', 'uploads');
@@ -31,27 +31,32 @@ const storage = multer.diskStorage({
     cb(null, Date.now() + path.extname(file.originalname));
   }
 });
-
 const upload = multer({ storage });
+
+const storageExcel = multer.diskStorage({
+    destination: (req, file, cb) => {
+      const uploadDir = path.join(__dirname, 'data', 'excel');
+      if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+      cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+      cb(null, Date.now() + path.extname(file.originalname));
+    }
+});
+const uploadExcel = multer({ storage: storageExcel });
 
 // Middleware
 app.use(express.json());
 app.use(express.static('public'));
+app.use(express.static('data'));
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
-app.use('/faces', express.static(path.join(__dirname, 'data/faces')));
+app.use('/photos', express.static(path.join(__dirname, 'data/photos')));
+// app.use('/excel', express.static(path.join(__dirname, 'data/excel')));
 
 // Foydalanuvchilarni o'qish
 function getUsers() {
-
   return JSON.parse(fs.readFileSync(usersFile));
 }
-
-// // Foydalanuvchini saqlash
-// function saveUser(user) {
-//   const users = getUsers();
-//   users.push(user);
-//   fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
-// }
 
 async function getFaceDescriptor(img){
   const detection = await faceapi.detectSingleFace(img)
@@ -64,9 +69,8 @@ async function getFaceDescriptor(img){
 app.post('/api/register', upload.single('photo'), (req, res) => {
   try {
     const userId = uuidv4();
-    const { firstName, lastName, userRank, faceEncoding } = req.body;
+    const { firstName, lastName, userRank, mansab, faceEncoding } = req.body;
     const photo = req.file.filename;
-    // const faceDescriptor = getFaceDescriptor(photo);
     const imagePath = `/uploads/${req.file.filename}`;
     
     if (!firstName || !faceEncoding || !req.file) {
@@ -94,9 +98,9 @@ app.post('/api/register', upload.single('photo'), (req, res) => {
     const createdAt = new Date().toISOString();
     // console.log(createdAt);
     const stmt = db.prepare(
-      `INSERT INTO users (id, firstname, lastname, label, faceEncoding, imagePath, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`);
-    stmt.run(userId, firstName, lastName, userRank, JSON.stringify(encodingArray), imagePath, createdAt);
+      `INSERT INTO users (id, firstname, lastname, label, mansab, faceEncoding, imagePath, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+    stmt.run(userId, firstName, lastName, userRank, mansab, JSON.stringify(encodingArray), imagePath, createdAt);
 
     res.json({ success: true, userId, userPhoto: photo });
   } catch (error) {
@@ -113,7 +117,7 @@ function euclideanDistance(a, b) {
   return Math.sqrt(sum);
 }
 
-const THRESHOLD = 0.5; // max masofa
+const THRESHOLD = 0.4;
 
 app.post('/api/users/login', express.json(), (req, res) => {
   const { faceEncoding } = req.body;
@@ -182,7 +186,7 @@ app.post('/api/save-face', express.json(), (req, res) => {
 // Barcha foydalanuvchilarni olish
 app.get('/api/users', (req, res) => {
   try {
-    const users = db.prepare('SELECT id, firstname, lastname, label, imagePath, createdAt FROM users').all();
+    const users = db.prepare('SELECT id, firstname, lastname, label, mansab, imagePath, createdAt FROM users').all();
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -239,70 +243,103 @@ app.get('/api/login/history', (req, res) => {
   res.json(history);
 });
 
-
-const filePath = path.join(historyPath, 'data.json');
+// const filePath = path.join(historyPath, 'data.json');
 // login tarixini saqlash
-app.post('/save-json', (req, res) => {
-  const { user_id } = req.body;
+// app.post('/save-json', (req, res) => {
+//   const { user_id } = req.body;
 
-  if (!user_id) {
-    return res.status(400).json({ success: false, message: "user_id talab qilinadi" });
-  }
+//   if (!user_id) {
+//     return res.status(400).json({ success: false, message: "user_id talab qilinadi" });
+//   }
 
-  const newData = {
-    id: uuidv4(), // UUID avtomatik hosil bo‘ladi
-    user_id,
-    created_date: new Date().toISOString()
-  };
+//   const newData = {
+//     id: uuidv4(), // UUID avtomatik hosil bo‘ladi
+//     user_id,
+//     created_date: new Date().toISOString()
+//   };
 
-  // Eski fayldan o‘qib, yangi yozuv qo‘shamiz
-  fs.readFile(filePath, 'utf8', (err, data) => {
-    let json = [];
-    if (!err && data) {
-      try {
-        json = JSON.parse(data);
-      } catch (parseErr) {
-        console.error("JSON parse xatolik:", parseErr);
-      }
-    }
+//   // Eski fayldan o‘qib, yangi yozuv qo‘shamiz
+//   fs.readFile(filePath, 'utf8', (err, data) => {
+//     let json = [];
+//     if (!err && data) {
+//       try {
+//         json = JSON.parse(data);
+//       } catch (parseErr) {
+//         console.error("JSON parse xatolik:", parseErr);
+//       }
+//     }
 
-    json.push(newData);
+//     json.push(newData);
 
-    fs.writeFile(filePath, JSON.stringify(json, null, 2), (writeErr) => {
-      if (writeErr) {
-        console.error("Yozishda xatolik:", writeErr);
-        return res.status(500).json({ success: false, message: "Faylga yozib bo‘lmadi" });
-      }
+//     fs.writeFile(filePath, JSON.stringify(json, null, 2), (writeErr) => {
+//       if (writeErr) {
+//         console.error("Yozishda xatolik:", writeErr);
+//         return res.status(500).json({ success: false, message: "Faylga yozib bo‘lmadi" });
+//       }
 
-      res.json({ success: true, message: "Ma’lumot saqlandi", data: newData });
-    });
-  });
-});
+//       res.json({ success: true, message: "Ma’lumot saqlandi", data: newData });
+//     });
+//   });
+// });
 
 // login tarixini olish
-app.get('/history', (req, res) => {
-  fs.readFile(filePath, 'utf8', (err, data) => {
-    if (err) {
-      console.error("❌ Fayl o‘qishda xatolik:", err);
-      return res.status(500).json({ success: false, message: "Fayl o‘qilmadi" });
-    }
+// app.get('/history', (req, res) => {
+//   fs.readFile(filePath, 'utf8', (err, data) => {
+//     if (err) {
+//       console.error("❌ Fayl o‘qishda xatolik:", err);
+//       return res.status(500).json({ success: false, message: "Fayl o‘qilmadi" });
+//     }
 
-    try {
-      const jsonData = JSON.parse(data);
+//     try {
+//       const jsonData = JSON.parse(data);
 
-      // DESC tartibda sort qilish (so‘nggi yozuvlar yuqorida bo‘ladi)
-      const sortedData = jsonData.sort((a, b) => {
-        return new Date(b.created_date) - new Date(a.created_date);
-      });
+//       // DESC tartibda sort qilish (so‘nggi yozuvlar yuqorida bo‘ladi)
+//       const sortedData = jsonData.sort((a, b) => {
+//         return new Date(b.created_date) - new Date(a.created_date);
+//       });
 
-      res.json({ success: true, data: sortedData });
-    } catch (parseErr) {
-      console.error("❌ JSON parse xatolik:", parseErr);
-      res.status(500).json({ success: false, message: "JSON noto‘g‘ri formatda" });
-    }
-  });
+//       res.json({ success: true, data: sortedData });
+//     } catch (parseErr) {
+//       console.error("❌ JSON parse xatolik:", parseErr);
+//       res.status(500).json({ success: false, message: "JSON noto‘g‘ri formatda" });
+//     }
+//   });
+// });
+
+app.post('/api/excel/upload', uploadExcel.single('excel'), async (req, res) => {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(req.file.path);
+    const worksheet = workbook.getWorksheet(1);
+
+    workbook.media.forEach((img, i) => {
+        // console.log(i, img.imageId);
+        const ext = img.extension;
+        const imgName = `image${i + 1}.${ext}`;
+        fs.writeFileSync(path.join('data/photos', imgName), img.buffer);
+        img.filename = imgName;
+    });
+
+    // Jadval yaratish
+    let table = `<table id='loadExcelTable' class='table' cellpadding="5"><tbody>`;
+    worksheet.eachRow((row, rowIndex) => {
+        table += `<tr>`;
+        row.eachCell((cell) => {
+            let value = cell.value;
+
+            table += `<td class='${rowIndex === 1 ? 'fw-bold' : ''}'>${value || ''}</td>`;
+        });
+        if (rowIndex > 1){
+          // value = ``;
+          table += `<td><img src="http://localhost:3000/photos/image${rowIndex-1}.jpeg" id='image${rowIndex-1}' class='rounded' width="80"></td>`;
+        } 
+        table += `</tr>`;
+    });
+    table += `</tbody></table>`;
+
+    res.send(`<html><body>${table}</body></html>`);
 });
 
+// --------------------------------------------
 // Serverni ishga tushirish
 app.listen(PORT, () => {
   console.log(`Server http://localhost:${PORT} portda ishga tushdi`);

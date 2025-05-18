@@ -65,6 +65,12 @@ body {
     padding: 5px;
     text-align: left;
 }
+#loadExcelModal .modal-content{
+    max-width: 100%;
+    margin: 0;
+    padding: 5px;
+    text-align: left;
+}
 .camera-section {
     margin-top: 20px;
     position: relative;
@@ -127,12 +133,13 @@ canvas {
 
 table tbody tr td{
     vertical-align: middle;
+    word-wrap: break-word;
 }
 .history table tbody tr td:nth-child(2){
     font-weight: bold;
     color: blue;
 }
-.register table tr th,
+.register table tr th:first-child,
 .register table tr td:first-child{
     font-weight: bold;
     text-align: center;
@@ -141,4 +148,10 @@ table tbody tr td{
 .register table tr td:last-child{
     text-align: center;
     border-left: 1px dashed black;
+    width: 110px;
+}
+#loadExcelModal .table-responsive{
+    max-height: 450px;
+    overflow-y: scroll;
+    margin: 10px 0;
 }

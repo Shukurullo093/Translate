@@ -1,5 +1,1 @@
--initialize database (postgresql/mongoDB/mySql)
--save users to database
--make beautiful register page
--add extra fields to register(phone, birtday, username, password...)
--
+edit users
