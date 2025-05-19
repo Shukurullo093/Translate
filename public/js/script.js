@@ -20,35 +20,23 @@ function generateUserTable(users) {
     // Create table body
     const tbody = table.createTBody();
   
-    let id=1;
+    let id = 1;
     users.forEach(user =>{
-      const row = tbody.insertRow();
-        // console.log(user);
-      // ID
-      row.insertCell().textContent = id; //user.id
-      id++;
-  
-      // First Name
-      row.insertCell().textContent = user.firstname;
-  
-      // Last Name
-      row.insertCell().textContent = user.lastname;
+        const row = tbody.insertRow();
 
-      // Rank
-      row.insertCell().innerHTML = `<span class='bg-success text-light py-1 px-2 rounded'>${user.label}</span>`;
-      row.insertCell().textContent = user.mansab;
-  
-        // Photo (as an image element)
-        //   const photoPath = user.faceDescriptor.split('data')[0]
-      const photoCell = row.insertCell();
-      const img = document.createElement('img');
-      img.src = `/uploads/${user.imagePath.split('/').pop()}`; 
-      img.alt = 'User Photo';
-      img.width = 80;
-      img.style.borderRadius = '10px';
-      photoCell.appendChild(img);
-  
-      // user created at
+        row.insertCell().textContent = id; 
+        row.insertCell().textContent = user.firstname;
+        row.insertCell().textContent = user.lastname;
+        row.insertCell().innerHTML = `<span class='bg-success text-light py-1 px-2 rounded'>${user.label}</span>`;
+        row.insertCell().textContent = user.mansab;
+        const photoCell = row.insertCell();
+        const img = document.createElement('img');
+        img.src = `/uploads/${user.imagePath.split('/').pop()}`; 
+        img.alt = 'User Photo';
+        img.width = 80;
+        img.style.borderRadius = '10px';
+        photoCell.appendChild(img);
+    
         const date = new Date(user.createdAt);
         const formatted = date.toLocaleString('uz-UZ', {
             day: '2-digit',
@@ -58,10 +46,11 @@ function generateUserTable(users) {
             minute: '2-digit',
             hour12: false,
         });
-      row.insertCell().textContent = formatted;
-      const action = row.insertCell();
-      action.innerHTML = `<button type="button" class="btn btn-primary"><i class="bi bi-pencil-square"></i></button>
+        row.insertCell().textContent = formatted;
+        const action = row.insertCell();
+        action.innerHTML = `<button type="button" class="btn btn-primary"><i class="bi bi-pencil-square"></i></button>
         <button type="button" class="btn btn-danger" onclick='userDelete(this)' data-user-id='${user.id}'><i class="bi bi-trash"></i></button>`;
+        id++;
     });
 }
 
@@ -230,6 +219,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
 
             const modal = new bootstrap.Modal(document.getElementById('myModal'));
             modal.hide();
+
             var table = document.getElementById("user-table");
             var row = table.insertRow(table.rows.length);
             var cell1 = row.insertCell(0);
@@ -249,7 +239,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
             img.src = `/uploads/${data.userPhoto}`; 
             img.alt = 'User Photo';
             img.width = 80;
-            cell5.appendChild(img);
+            cell6.appendChild(img);
             const date = new Date();
             const formatted = date.toLocaleString('uz-UZ', {
                 day: '2-digit',
@@ -259,7 +249,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
                 minute: '2-digit',
                 hour12: false,
             });
-            cell6.textContent = formatted;
+            cell7.textContent = formatted;
             row.insertCell(7).innerHTML = `<button type="button" class="btn btn-primary"><i class="bi bi-pencil-square"></i></button>
                 <button type="button" class="btn btn-danger"><i class="bi bi-trash"></i></button>`
             

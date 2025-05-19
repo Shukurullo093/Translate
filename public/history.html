@@ -158,9 +158,9 @@
             }
             
             rows.forEach(row => {
-                const dateCell = row.cells[3]; // Assuming the date is in the 4th column (index 3)
+                const dateCell = row.cells[4]; 
                 const cellDate = new Date(dateCell.textContent);
-                const formattedCellDate = cellDate.toISOString().split('T')[0]; // Format to YYYY-MM-DD
+                const formattedCellDate = cellDate.toISOString().split('T')[0]; 
                 
                 row.style.display = formattedCellDate === selectedDate ? '' : 'none';
             });
