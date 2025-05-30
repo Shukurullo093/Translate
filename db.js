@@ -6,8 +6,7 @@ const db = new Database('mydatabase.db');
 db.prepare(`
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
-    firstname TEXT NOT NULL,
-    lastname TEXT NOT NULL,
+    fullname TEXT NOT NULL,
     label TEXT NOT NULL,
     mansab TEXT NOT NULL,
     faceEncoding TEXT NOT NULL,

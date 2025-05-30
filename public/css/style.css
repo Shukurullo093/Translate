@@ -1,5 +1,5 @@
 body {
-    font-family: Arial, sans-serif;
+    font-family: 'Times New Roman', Times, serif;
     background-color: #20263c;
     height: 100vh;
 }
@@ -138,11 +138,15 @@ table tbody tr td{
 .history table tbody tr td:nth-child(2){
     font-weight: bold;
     color: blue;
+    text-transform: capitalize;
 }
 .register table tr th:first-child,
 .register table tr td:first-child{
     font-weight: bold;
     text-align: center;
+}
+.register table tr td:nth-child(2) {
+    text-transform: capitalize;
 }
 .register table tr th:last-child,
 .register table tr td:last-child{

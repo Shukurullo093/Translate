@@ -11,7 +11,7 @@ function generateUserTable(users) {
   
     const thead = table.createTHead();
     const headerRow = thead.insertRow();
-    ['ID', 'Ism', 'Familiya', 'Unvon', 'Mansab', 'Rasm', 'Vaqt', ''].forEach(text => {
+    ['ID', 'FIO', 'Unvon', 'Mansab', 'Rasm', 'Vaqt', ''].forEach(text => {
       const th = document.createElement('th');
       th.textContent = text;
       headerRow.appendChild(th);
@@ -25,8 +25,7 @@ function generateUserTable(users) {
         const row = tbody.insertRow();
 
         row.insertCell().textContent = id; 
-        row.insertCell().textContent = user.firstname;
-        row.insertCell().textContent = user.lastname;
+        row.insertCell().textContent = user.fullname;
         row.insertCell().innerHTML = `<span class='bg-success text-light py-1 px-2 rounded'>${user.label}</span>`;
         row.insertCell().textContent = user.mansab;
         const photoCell = row.insertCell();
@@ -179,8 +178,8 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     // e.preventDefault();
     let firstName = document.getElementById('firstName').value;
     firstName = capitalize(firstName);
-    let lastName = document.getElementById('lastName').value;
-    lastName = capitalize(lastName);
+    // let lastName = document.getElementById('lastName').value;
+    // lastName = capitalize(lastName);
     const userRank = document.getElementById('userRank').value;
     const mansab = document.getElementById('mansab').value;
     const photoFile = document.getElementById('userPhoto').files[0];
@@ -196,7 +195,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
 
     const formData = new FormData();
     formData.append('firstName', firstName);
-    formData.append('lastName', lastName);
+    // formData.append('lastName', firstName.split(' ')[0]);
     formData.append('userRank', userRank);
     formData.append('mansab', mansab);
     formData.append('faceEncoding', JSON.stringify(faceEncoding));
@@ -228,18 +227,16 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
             var cell4 = row.insertCell(3);
             var cell5 = row.insertCell(4);
             var cell6 = row.insertCell(5);
-            var cell7 = row.insertCell(6);
 
             cell1.textContent = table.rows.length - 1;
             cell2.textContent = firstName;
-            cell3.textContent = lastName;
-            cell4.innerHTML = `<span class='bg-success text-light py-1 px-2 rounded'>${userRank}</span>`;
-            cell5.textContent = mansab;
+            cell3.innerHTML = `<span class='bg-success text-light py-1 px-2 rounded'>${userRank}</span>`;
+            cell4.textContent = mansab;
             const img = document.createElement('img');
             img.src = `/uploads/${data.userPhoto}`; 
             img.alt = 'User Photo';
             img.width = 80;
-            cell6.appendChild(img);
+            cell5.appendChild(img);
             const date = new Date();
             const formatted = date.toLocaleString('uz-UZ', {
                 day: '2-digit',
@@ -249,8 +246,8 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
                 minute: '2-digit',
                 hour12: false,
             });
-            cell7.textContent = formatted;
-            row.insertCell(7).innerHTML = `<button type="button" class="btn btn-primary"><i class="bi bi-pencil-square"></i></button>
+            cell6.textContent = formatted;
+            row.insertCell(6).innerHTML = `<button type="button" class="btn btn-primary"><i class="bi bi-pencil-square"></i></button>
                 <button type="button" class="btn btn-danger"><i class="bi bi-trash"></i></button>`
             
         }
@@ -277,10 +274,10 @@ document.getElementById('loadExcelBtn').addEventListener('click', () => {
     Array.from(rows).slice(1).map(async row => {
         const cells = Array.from(row.cells);
         
-        let firstName = cells[3].textContent.split(' ')[1];
+        let firstName = cells[3].textContent;
         firstName = capitalize(firstName);
-        let lastName = cells[3].textContent.split(' ')[0];
-        lastName = capitalize(lastName);
+        // let lastName = cells[3].textContent.split(' ')[0];
+        // lastName = capitalize(lastName);
         const userRank = cells[2].textContent;
         const mansab = cells[1].textContent;
         // let photoFile;
@@ -302,7 +299,7 @@ document.getElementById('loadExcelBtn').addEventListener('click', () => {
 
         const formData = new FormData();
         formData.append('firstName', firstName);
-        formData.append('lastName', lastName);
+        // formData.append('lastName', lastName);
         formData.append('userRank', userRank);
         formData.append('mansab', mansab);
         formData.append('faceEncoding', JSON.stringify(faceEncoding));
@@ -333,18 +330,18 @@ document.getElementById('loadExcelBtn').addEventListener('click', () => {
                 var cell4 = row.insertCell(3);
                 var cell5 = row.insertCell(4);
                 var cell6 = row.insertCell(5);
-                var cell7 = row.insertCell(6);
+                // var cell7 = row.insertCell(6);
 
                 cell1.textContent = table.rows.length - 1;
                 cell2.textContent = firstName;
-                cell3.textContent = lastName;
-                cell4.innerHTML = `<span class='bg-success text-light py-1 px-2 text-capitalize rounded'>${userRank}</span>`;
-                cell5.textContent = mansab;
+                // cell3.textContent = lastName;
+                cell3.innerHTML = `<span class='bg-success text-light py-1 px-2 text-capitalize rounded'>${userRank}</span>`;
+                cell4.textContent = mansab;
                 const img = document.createElement('img');
                 img.src = `/uploads/${data.userPhoto}`; 
                 img.alt = 'User Photo';
                 img.width = 80;
-                cell6.appendChild(img);
+                cell5.appendChild(img);
                 const date = new Date();
                 const formatted = date.toLocaleString('uz-UZ', {
                     day: '2-digit',
@@ -354,8 +351,8 @@ document.getElementById('loadExcelBtn').addEventListener('click', () => {
                     minute: '2-digit',
                     hour12: false,
                 });
-                cell7.textContent = formatted;
-                row.insertCell(7).innerHTML = `<button type="button" class="btn btn-primary"><i class="bi bi-pencil-square"></i></button>
+                cell6.textContent = formatted;
+                row.insertCell(6).innerHTML = `<button type="button" class="btn btn-primary"><i class="bi bi-pencil-square"></i></button>
                     <button type="button" class="btn btn-danger"><i class="bi bi-trash"></i></button>`
                 
             }
@@ -485,7 +482,7 @@ takePhoto.addEventListener("click", () => {
 document.getElementById('cameraModalBtn').addEventListener('click', async () => {
     // e.preventDefault();
     const firstName = document.getElementById('cfirstName').value;
-    const lastName = document.getElementById('clastName').value;
+    // const lastName = document.getElementById('clastName').value;
     const userRank = document.getElementById('cuserRank').value;
     const mansab = document.getElementById('cmansab').value;
     const photoFile = dataURLtoFile(canvas.toDataURL("image/png"), 'userphoto.png');
@@ -501,7 +498,7 @@ document.getElementById('cameraModalBtn').addEventListener('click', async () => 
 
     const formData = new FormData();
     formData.append('firstName', firstName);
-    formData.append('lastName', lastName);
+    // formData.append('lastName', lastName);
     formData.append('userRank', userRank);
     formData.append('mansab', mansab);
     formData.append('faceEncoding', JSON.stringify(faceEncoding));
@@ -532,18 +529,18 @@ document.getElementById('cameraModalBtn').addEventListener('click', async () => 
             var cell4 = row.insertCell(3);
             var cell5 = row.insertCell(4);
             var cell6 = row.insertCell(5);
-            var cell7 = row.insertCell(6);
+            // var cell7 = row.insertCell(6);
 
             cell1.textContent = table.rows.length - 1;
             cell2.textContent = firstName;
-            cell3.textContent = lastName;
-            cell4.innerHTML = `<span class='bg-success text-light py-1 px-2 rounded'>${userRank}</span>`;
-            cell5.textContent = mansab;
+            // cell3.textContent = lastName;
+            cell3.innerHTML = `<span class='bg-success text-light py-1 px-2 rounded'>${userRank}</span>`;
+            cell4.textContent = mansab;
             const img = document.createElement('img');
             img.src = `/uploads/${data.userPhoto}`; 
             img.alt = 'User Photo';
             img.width = 80;
-            cell6.appendChild(img);
+            cell5.appendChild(img);
             const date = new Date();
             const formatted = date.toLocaleString('uz-UZ', {
                 day: '2-digit',
@@ -553,8 +550,8 @@ document.getElementById('cameraModalBtn').addEventListener('click', async () => 
                 minute: '2-digit',
                 hour12: false,
             });
-            cell7.textContent = formatted;
-            row.insertCell(7).innerHTML = `<button type="button" class="btn btn-primary"><i class="bi bi-pencil-square"></i></button>
+            cell6.textContent = formatted;
+            row.insertCell(6).innerHTML = `<button type="button" class="btn btn-primary"><i class="bi bi-pencil-square"></i></button>
                 <button type="button" class="btn btn-danger"><i class="bi bi-trash"></i></button>`
         }
     } catch (error) {

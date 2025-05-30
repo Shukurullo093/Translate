@@ -323,6 +323,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         });
 
                         const result = await res.json();
+                        console.log(result);
+                        
                         if (res.ok && !detectedUserIds.has(result.id)) {
                             detectedUserIds.add(result.id);
                             showUser(result.name); // foydalanuvchini ko‘rsat

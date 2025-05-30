@@ -75,7 +75,7 @@
                 row.insertCell().textContent = id; //user.id
                 id++;
 
-                row.insertCell().textContent = user.firstname + ' ' + user.lastname;
+                row.insertCell().textContent = user.fullname;
                 row.insertCell().textContent = user.label;
                 const photoCell = row.insertCell();
                 const img = document.createElement('img');

@@ -69,7 +69,7 @@ async function getFaceDescriptor(img){
 app.post('/api/register', upload.single('photo'), (req, res) => {
   try {
     const userId = uuidv4();
-    const { firstName, lastName, userRank, mansab, faceEncoding } = req.body;
+    const { firstName, userRank, mansab, faceEncoding } = req.body;
     const photo = req.file.filename;
     const imagePath = `/uploads/${req.file.filename}`;
     
@@ -98,9 +98,9 @@ app.post('/api/register', upload.single('photo'), (req, res) => {
     const createdAt = new Date().toISOString();
     // console.log(createdAt);
     const stmt = db.prepare(
-      `INSERT INTO users (id, firstname, lastname, label, mansab, faceEncoding, imagePath, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
-    stmt.run(userId, firstName, lastName, userRank, mansab, JSON.stringify(encodingArray), imagePath, createdAt);
+      `INSERT INTO users (id, fullname, label, mansab, faceEncoding, imagePath, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`);
+    stmt.run(userId, firstName, userRank, mansab, JSON.stringify(encodingArray), imagePath, createdAt);
 
     res.json({ success: true, userId, userPhoto: photo });
   } catch (error) {
@@ -126,13 +126,15 @@ app.post('/api/users/login', express.json(), (req, res) => {
     return res.status(400).json({ message: 'Invalid faceEncoding' });
   }
 
-  const users = db.prepare('SELECT id, firstname, faceEncoding FROM users').all();
+  const users = db.prepare('SELECT id, fullname, faceEncoding FROM users').all();
 
   for (const user of users) {
     const dbEncoding = JSON.parse(user.faceEncoding);
     const distance = euclideanDistance(faceEncoding, dbEncoding);
 
     if (distance < THRESHOLD) {
+      // console.log(user);
+      
       const now = new Date();
       const oneMinuteAgo = new Date(now.getTime() - 60 * 1000).toISOString();
 
@@ -149,8 +151,8 @@ app.post('/api/users/login', express.json(), (req, res) => {
           VALUES (?, ?, ?)
         `).run(uuid.v4(), user.id, now.toISOString());
       }
-
-      return res.json({ message: 'Login successful', id: user.id, name: user.firstname });
+      
+      return res.json({ message: 'Login successful', id: user.id, name: user.fullname });
     }
   }
 
@@ -186,7 +188,7 @@ app.post('/api/save-face', express.json(), (req, res) => {
 // Barcha foydalanuvchilarni olish
 app.get('/api/users', (req, res) => {
   try {
-    const users = db.prepare('SELECT id, firstname, lastname, label, mansab, imagePath, createdAt FROM users').all();
+    const users = db.prepare('SELECT id, fullname, label, mansab, imagePath, createdAt FROM users').all();
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -234,7 +236,7 @@ app.delete('/api/users/:id', (req, res) => {
 
 app.get('/api/login/history', (req, res) => {
   const history = db.prepare(`
-    SELECT h.id, h.timestamp, u.firstname, u.lastname, u.label, u.imagePath
+    SELECT h.id, h.timestamp, u.fullname, u.label, u.imagePath
     FROM history h
     JOIN users u ON u.id = h.userId
     ORDER BY h.timestamp DESC
